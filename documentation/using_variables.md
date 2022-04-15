@@ -29,7 +29,7 @@ This will later be united with `saythis()`.
 ```
 // This outputs:
 //    I have a message for you:
-//	  Hello World!
+//    Hello World!
 test = "Hello World!";
 saythis("I have a message for you:");
 sayvar(test);
