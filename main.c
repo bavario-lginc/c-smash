@@ -111,6 +111,7 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 	int index = 0;
 	while (command[index] != NULL) {
 		CSI.currentcommand[index] = command[index];
+		// printf("%i", CSI.curflags[1]);
 		if (CSI.curflags[0] == NULL) {
 			if (!strcmp(CSI.currentcommand, "saythis")) CSI.curflags[0] = 1;
 			else if (!strcmp(CSI.currentcommand, "sayvar(")) CSI.curflags[0] = 3;
@@ -152,13 +153,19 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 			CSI.curflags[4] = (CSI.currentcommand[index] == 34 ? 1 : (CSI.currentcommand[index] == 60 ? 3 : (CSI.currentcommand[index] == 84 || CSI.currentcommand[index] == 70 ? 2 : 2)));
 			if (CSI.currentcommand[index] == 84) strcat(CSI.arithmeticalValues, "1");
 			else if (CSI.currentcommand[index] == 70) strcat(CSI.arithmeticalValues, "0");
-			else { strcat(CSI.arithmeticalValues, &CSI.currentcommand[index]); printf("%c\n", CSI.currentcommand[index]); }
+			else { strcat(CSI.arithmeticalValues, &CSI.currentcommand[index]); }
 		}
 		else if (CSI.curflags[2] != NULL) {
 			if (CSI.curflags[0] == 2) {
 				if (CSI.curflags[2] == 3) {
 					CSI.curflags[2] = (CSI.currentcommand[index] == 34 ? 4 : (CSI.currentcommand[index] == 84 || CSI.currentcommand[index] == 70 ? 5 : 5));
 				} else if (CSI.curflags[2] == 1 && CSI.currentcommand[index] != 34) strcat(CSI.stringvalue, &CSI.currentcommand[index]);
+				else if (CSI.curflags[2] == 8 && strstr(CSI.currentcommand, "input(")) {
+					if (CSI.currentcommand[index] == 34 && CSI.curflags[1] == NULL) { CSI.curflags[1] = 1; index++; continue; }
+					if (CSI.currentcommand[index] != 34 && CSI.curflags[1] == 1) strcat(CSI.printstring, &CSI.currentcommand[index]);
+					else if (CSI.currentcommand[index] == 34 && CSI.curflags[1] == 1) { printf("%s\n", CSI.printstring); fflush(stdout); fgets(CSI.stringvalue, MAX_STRING_LEN, stdin); CSI.stringvalue[strcspn(CSI.stringvalue, "\r\n")] = 0; interpreter_store(CSI.varname, 1); break; }
+					else if (CSI.currentcommand[index] == 41) { fgets(CSI.stringvalue, MAX_STRING_LEN, stdin); CSI.stringvalue[strcspn(CSI.stringvalue, "\r\n")] = 0; interpreter_store(CSI.varname, 1); break; }
+				}
 				else if (CSI.curflags[2] == 1 && CSI.currentcommand[index] == 34) { interpreter_store(CSI.varname, 1); break; }
 				if (CSI.currentcommand[index] == 32 || CSI.currentcommand[index] == 9 || CSI.currentcommand[index] == 40 || CSI.currentcommand[index] == 41 || CSI.currentcommand[index] == 13) {
 					//Ignore the character and move on
@@ -185,7 +192,13 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 		else if (CSI.curflags[1] != NULL) {
 			if (CSI.curflags[1] == 1) {
 				if (CSI.currentcommand[index] != 34) { strcat(CSI.printstring, &CSI.currentcommand[index]); }
-				else printf("%s\n", CSI.printstring);
+				else {
+					printf("%s\n", CSI.printstring);
+					fflush(stdout);
+					if (CSI.curflags[0] == 4) {
+						fgets(CSI.inputstring, MAX_STRING_LEN, stdin); break;
+					}
+				}
 			}
 			else if (CSI.curflags[1] == 2 && isdigit(CSI.currentcommand[index])) strcat(CSI.printstring, &CSI.currentcommand[index]);
 			else if (CSI.curflags[1] == 2 && !isdigit(CSI.currentcommand[index])) printf("%s\n", CSI.printstring);
@@ -212,6 +225,10 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 				if (CSI.currentcommand[index] != 41) strcat(CSI.varname, &CSI.currentcommand[index]);
 				else { interpreter_get(CSI.varname); conditionalPrintf(); }
 			}
+			else if (CSI.curflags[0] == 4) {
+				if (CSI.currentcommand[index] == 34) CSI.curflags[1] = 1;
+				else if (CSI.currentcommand[index] == 41) { fgets(CSI.inputstring, MAX_STRING_LEN, stdin); break; }
+			}
 			if (CSI.currentcommand[index] == 32 || CSI.currentcommand[index] == 9 || CSI.currentcommand[index] == 40 || CSI.currentcommand[index] == 41) {
 				//Ignore the character and move on
 				index++;
@@ -221,17 +238,10 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 				// if (CSI.currentcommand[index] == 61) CSI.curflags[1] = 2;
 			// }
 			else if (CSI.curflags[0] == 2) {
-				CSI.curflags[2] = (CSI.currentcommand[index] == 34 ? 1 : (CSI.currentcommand[index] == 60 ? 3 : (CSI.currentcommand[index] == 84 || CSI.currentcommand[index] == 70 ? 2 : 2)));
+				CSI.curflags[2] = (CSI.currentcommand[index] == 34 ? 1 : (CSI.currentcommand[index] == 60 ? 3 : (CSI.currentcommand[index] == 84 || CSI.currentcommand[index] == 70 ? 2 : (isalpha(CSI.currentcommand[index]) ? 8 : 2))));
 				if (CSI.currentcommand[index] == 84) strcat(CSI.convertToInt, "1");
 				else if (CSI.currentcommand[index] == 70) strcat(CSI.convertToInt, "0");
 				else strcat(CSI.convertToInt, &CSI.currentcommand[index]);
-			}
-			else if (CSI.curflags[0] == 4) {
-				if (CSI.currentcommand[index] == 34) CSI.curflags[1] = 1;
-				if (CSI.currentcommand[index] != 34 && CSI.curflags[1] == 1) strcat(CSI.printstring, &CSI.currentcommand[index]);
-				else if (CSI.currentcommand[index] == 34 && CSI.curflags[1] == 1) { printf("%s\n", CSI.printstring); fgets(CSI.inputstring, MAX_STRING_LEN, stdin); }
-				else if (CSI.currentcommand[index] == 41) fgets(CSI.inputstring, MAX_STRING_LEN, stdin);
-				
 			}
 			else if (CSI.curflags[0] == 5) {
 				if (isdigit(CSI.currentcommand[index])) strcat(CSI.convertToInt, &CSI.currentcommand[index]);
@@ -311,7 +321,7 @@ int main(int argc, char *argv[]) {
 		else { printf("Error: Couldn't find the command to execute\n"); }
 	} else if (!strcmp(argv[1], "-i")) {
 		char userinput[MAX_STRING_LEN];
-		printf("C-Smash shell Version 0.1\nType exit() to exit the interactive shell.");
+		printf("C-Smash shell Version 0.2\nType exit() to exit the interactive shell.");
 		while (true) {
 			printf("\n> ");
 			fgets(userinput, MAX_STRING_LEN, stdin);
