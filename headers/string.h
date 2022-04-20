@@ -67,7 +67,7 @@ char *strmultiply (int pow, char *original, int amount) {
     } else {
         int i = 0;
         char toString[2] = "\0";
-        while (original[i] != NULL) {
+        while (original[i] != 0) {
             for (int pos = 0; pos <= amount - 1; pos++) {
                 toString[0] = original[i];
                 strcat(CSI.buffer, toString);
