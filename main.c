@@ -20,6 +20,7 @@ struct Interpreter {
 	char substring[MAX_STRING_LEN];
 	char buffer[MAX_STRING_LEN];
 	bool normalInt;
+	char *buttonargs[MAX_STRING_LEN];
 }CSI; // C-Smash Interpreter
 #include <stdio.h>
 #include <math.h>
@@ -49,6 +50,9 @@ int interpreter_throw (int exceptionCode) {
 		case 2:
 			printf("ValueError: %s\n", CSI.exceptionMsg);
 			break;
+		case 3:
+			printf("DumbError: %s\n", CSI.exceptionMsg);
+			break;
 	}
 	exit(0);
 }
@@ -75,7 +79,17 @@ void interpreter_parseArray (char *readArray, int type) {
 		strcpy(CSI.stringvalue, readArray);
 		printf("%s", CSI.stringvalue);
 	} else {
-		printf("Array: [%s]", strreplace(readArray, "\n", ""));
+		if (CSI.curflags[0] == 8) {
+			readArray = strreplace(readArray, "\n", "");
+			readArray = strreplace(readArray, "\"", "");
+			readArray = strtok(readArray, ",");
+			for (int i = 0; readArray != NULL; i++) {
+				CSI.buttonargs[i] = readArray;
+				readArray = strtok(NULL, ",");
+			}
+			return;
+		}
+		else printf("Array: [%s]", strreplace(readArray, "\n", ""));
 	}
 }
 
@@ -111,10 +125,9 @@ void conditionalPrintf () {
 
 void interpreter_run (char command[MAX_STRING_LEN]) {
 	int index = 0;
-	while (command[index] != NULL) {
+	while (command[index] != 0) {
 		CSI.currentcommand[index] = command[index];
-		// printf("%s\n", CSI.currentcommand);
-		if (CSI.curflags[0] == NULL) {
+		if (CSI.curflags[0] == 0) {
 			if (!strcmp(CSI.currentcommand, "saythis")) CSI.curflags[0] = 1;
 			else if (!strcmp(CSI.currentcommand, "sayvar(")) CSI.curflags[0] = 3;
 			else if (!strcmp(CSI.currentcommand, "sleep(")) CSI.curflags[0] = 5;
@@ -123,6 +136,14 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 			else if (!strcmp(CSI.currentcommand, "rickroll()")) system(RICKROLL);
 			else if (!strcmp(CSI.currentcommand, "input(")) CSI.curflags[0] = 4;
 			else if (!strcmp(CSI.currentcommand, "window(")) CSI.curflags[0] = 6;
+			else if (!strcmp(CSI.currentcommand, "changeWindowButtons(")) {
+				#ifdef _WIN32
+					sprintf(CSI.exceptionMsg, "Button customization on Windows is not available yet");
+					interpreter_throw(3);
+				#else
+					CSI.curflags[0] = 8;
+				#endif
+			}
 			else if (!strcmp(CSI.currentcommand, "//")) break;
 			else if (CSI.currentcommand[index] == 61) { 
 				CSI.curflags[0] = 2;
@@ -134,7 +155,7 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 				continue;
 			}
 		}
-		else if (CSI.curflags[4] != NULL) {
+		else if (CSI.curflags[4] != 0) {
 			if (isdigit(CSI.currentcommand[index])) { strcat(CSI.arithmeticalValues, &CSI.currentcommand[index]); }
 			else if (!isdigit(CSI.currentcommand[index])) {
 				if (CSI.curflags[3] == 1) { CSI.intvalue = atoi(CSI.convertToInt); CSI.intvalue += atoi(CSI.arithmeticalValues); sprintf(CSI.convertToInt, "%i", CSI.intvalue); interpreter_store(CSI.varname, 2); break; }
@@ -145,7 +166,7 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 				if (CSI.curflags[3] == 6) { CSI.intvalue = atoi(CSI.convertToInt); CSI.intvalue %= atoi(CSI.arithmeticalValues); sprintf(CSI.convertToInt, "%i", CSI.intvalue); interpreter_store(CSI.varname, 2); break; }
 			}
 		}
-		else if (CSI.curflags[3] != NULL) {
+		else if (CSI.curflags[3] != 0) {
 			if (CSI.currentcommand[index] == 32 || CSI.currentcommand[index] == 9 || CSI.currentcommand[index] == 40 || CSI.currentcommand[index] == 41 || CSI.currentcommand[index] == 13) {
 				//Ignore the character and move on
 				index++;
@@ -156,20 +177,20 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 			else if (CSI.currentcommand[index] == 70) strcat(CSI.arithmeticalValues, "0");
 			else { strcat(CSI.arithmeticalValues, &CSI.currentcommand[index]); }
 		}
-		else if (CSI.curflags[2] != NULL) {
+		else if (CSI.curflags[2] != 0) {
 			if (CSI.curflags[0] == 2) {
 				if (CSI.curflags[2] == 3) {
 					CSI.curflags[2] = (CSI.currentcommand[index] == 34 ? 4 : (CSI.currentcommand[index] == 84 || CSI.currentcommand[index] == 70 ? 5 : 5));
 					strcat(CSI.stringvalue, &CSI.currentcommand[index]);
 				} else if (CSI.curflags[2] == 1 && CSI.currentcommand[index] != 34) strcat(CSI.stringvalue, &CSI.currentcommand[index]);
 				else if (CSI.curflags[2] == 8 && strstr(CSI.currentcommand, "input(")) {
-					if (CSI.currentcommand[index] == 34 && CSI.curflags[1] == NULL) { CSI.curflags[1] = 1; index++; continue; }
+					if (CSI.currentcommand[index] == 34 && CSI.curflags[1] == 0) { CSI.curflags[1] = 1; index++; continue; }
 					if (CSI.currentcommand[index] != 34 && CSI.curflags[1] == 1) strcat(CSI.printstring, &CSI.currentcommand[index]);
 					else if (CSI.currentcommand[index] == 34 && CSI.curflags[1] == 1) { printf("%s\n", CSI.printstring); fflush(stdout); fgets(CSI.stringvalue, MAX_STRING_LEN, stdin); CSI.stringvalue[strcspn(CSI.stringvalue, "\r\n")] = 0; interpreter_store(CSI.varname, 1); break; }
 					else if (CSI.currentcommand[index] == 41) { fgets(CSI.stringvalue, MAX_STRING_LEN, stdin); CSI.stringvalue[strcspn(CSI.stringvalue, "\r\n")] = 0; interpreter_store(CSI.varname, 1); break; }
 				}
 				else if (CSI.curflags[2] == 8 && strstr(CSI.currentcommand, "append(")) {
-					if (CSI.curflags[1] == NULL) {
+					if (CSI.curflags[1] == 0) {
 						if (CSI.currentcommand[index] == 44 || CSI.currentcommand[index] == 32);
 						else if (CSI.currentcommand[index] == 34) CSI.curflags[1] = 1;
 						else if (CSI.currentcommand[index] == 41) {
@@ -182,10 +203,10 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 				else if (CSI.curflags[2] == 7 && CSI.curflags[0] == 2) {
 					if (CSI.currentcommand[index] != 34) strcat(CSI.substring, &CSI.currentcommand[index]);
 					else if (CSI.curflags[1] == 10) { CSI.normalInt = true; CSI.intvalue = strcount(CSI.stringvalue, CSI.substring); interpreter_store(CSI.varname, 2); }
-					else { sprintf(CSI.stringvalue, strreplace(CSI.stringvalue, CSI.substring, "")); interpreter_store(CSI.varname, 1); }
+					else { sprintf(CSI.stringvalue, "%s", strreplace(CSI.stringvalue, CSI.substring, "")); interpreter_store(CSI.varname, 1); }
 				}
 				else if (CSI.curflags[2] == 8 && strstr(CSI.currentcommand, "remove(\"")) {
-					if (CSI.curflags[1] == NULL) {
+					if (CSI.curflags[1] == 0) {
 						if (CSI.currentcommand[index] != 34) strcat(CSI.stringvalue, &CSI.currentcommand[index]);
 						else if (strcmp(CSI.stringvalue, "")) CSI.curflags[2] = 6; // If CSI.stringvalue isn't empty
 					}
@@ -193,7 +214,7 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 					else strcat(CSI.stringvalue, &CSI.currentcommand[index]);
 				}
 				else if (CSI.curflags[2] == 8 && strstr(CSI.currentcommand, "count(\"")) {
-					if (CSI.curflags[1] == NULL) {
+					if (CSI.curflags[1] == 0) {
 						if (CSI.currentcommand[index] != 34) strcat(CSI.stringvalue, &CSI.currentcommand[index]);
 						else if (strcmp(CSI.stringvalue, "")) { CSI.curflags[1] = 10; CSI.curflags[2] = 6; } // If CSI.stringvalue isn't empty
 					}
@@ -201,21 +222,21 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 					else strcat(CSI.stringvalue, &CSI.currentcommand[index]);
 				}
 				else if (CSI.curflags[2] == 8 && strstr(CSI.currentcommand, "repeat(")) {
-					if (CSI.curflags[1] == NULL) {
+					if (CSI.curflags[1] == 0) {
 						if (CSI.currentcommand[index] == 34) CSI.curflags[1] = 1;
 						else if (CSI.currentcommand[index] == 44) sprintf(CSI.convertToInt, "");
 						else if (isdigit(CSI.currentcommand[index])) strcat(CSI.convertToInt, &CSI.currentcommand[index]);
-						else if (CSI.currentcommand[index] == 41) { sprintf(CSI.stringvalue, strmultiply(0, CSI.stringvalue, atoi(CSI.convertToInt))); interpreter_store(CSI.varname, 1); break; }
+						else if (CSI.currentcommand[index] == 41) { sprintf(CSI.stringvalue, "%s", strmultiply(0, CSI.stringvalue, atoi(CSI.convertToInt))); interpreter_store(CSI.varname, 1); break; }
 					}
 					else if (CSI.curflags[1] == 1 && CSI.currentcommand[index] == 34) CSI.curflags[1] = 0;
 					else strcat(CSI.stringvalue, &CSI.currentcommand[index]);
 				}
 				else if (CSI.curflags[2] == 8 && strstr(CSI.currentcommand, "stringpow(")) {
-					if (CSI.curflags[1] == NULL) {
+					if (CSI.curflags[1] == 0) {
 						if (CSI.currentcommand[index] == 34) CSI.curflags[1] = 1;
 						else if (CSI.currentcommand[index] == 44) sprintf(CSI.convertToInt, "");
 						else if (isdigit(CSI.currentcommand[index])) strcat(CSI.convertToInt, &CSI.currentcommand[index]);
-						else if (CSI.currentcommand[index] == 41) { sprintf(CSI.stringvalue, strmultiply(1, CSI.stringvalue, atoi(CSI.convertToInt))); interpreter_store(CSI.varname, 1); break; }
+						else if (CSI.currentcommand[index] == 41) { sprintf(CSI.stringvalue, "%s", strmultiply(1, CSI.stringvalue, atoi(CSI.convertToInt))); interpreter_store(CSI.varname, 1); break; }
 					}
 					else if (CSI.curflags[1] == 1 && CSI.currentcommand[index] == 34) CSI.curflags[1] = 0;
 					else strcat(CSI.stringvalue, &CSI.currentcommand[index]);
@@ -249,10 +270,15 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 				else if (CSI.curflags[2] == 6 && CSI.currentcommand[index] == 34) CSI.curflags[2] = 7;
 				else if (CSI.curflags[2] == 6 && CSI.currentcommand[index] == 41) { sprintf(CSI.exceptionMsg, "Missing at least one argument of function window"); interpreter_throw(1); }
 				else if (CSI.curflags[2] == 7 && CSI.currentcommand[index] != 34) { strcat(CSI.substring, &CSI.currentcommand[index]); }
-				else if (CSI.curflags[2] == 7 && CSI.currentcommand[index] == 34) { char *windowargs[] = {"", CSI.stringvalue, CSI.substring, "z", (CSI.curflags[1] == 3 ? "1" : (CSI.curflags[1] == 4 ? "2" : (CSI.curflags[1] == 5 ? "3" : "4")))}; createWindow(windowargs); break; }
+				else if (CSI.curflags[2] == 7 && CSI.currentcommand[index] == 34) {
+					char *windowargs[] = {"", CSI.stringvalue, CSI.substring, (CSI.curflags[1] == 3 ? "1" : (CSI.curflags[1] == 4 ? "2" : (CSI.curflags[1] == 5 ? "3" : "4")))};
+					if (CSI.buttonargs[0] == NULL) { CSI.buttonargs[0] = "Yes"; CSI.buttonargs[1] = "No"; CSI.buttonargs[2] = "Cancel";  }
+					createWindow(windowargs, CSI.buttonargs);
+					break;
+				}
 			}
 		}
-		else if (CSI.curflags[1] != NULL) {
+		else if (CSI.curflags[1] != 0) {
 			if (CSI.curflags[1] == 1) {
 				if (CSI.currentcommand[index] != 34) { strcat(CSI.printstring, &CSI.currentcommand[index]); }
 				else {
@@ -284,7 +310,7 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 				else if (CSI.currentcommand[index] == 41) printf("%s", CSI.substring);
 			}*/
 		}
-		else if (CSI.curflags[0] != NULL) {
+		else if (CSI.curflags[0] != 0) {
 			if (CSI.curflags[0] == 1) {
 				if (CSI.currentcommand[index] == 34) CSI.curflags[1] = 1;
 				else if (isdigit(CSI.currentcommand[index])) { CSI.curflags[1] = 2; strcat(CSI.printstring, &CSI.currentcommand[index]); }
@@ -328,10 +354,13 @@ void interpreter_run (char command[MAX_STRING_LEN]) {
 				else if (!strcmp(CSI.storageString, "ERROR")) CSI.curflags[1] = 6;
 				else strcat(CSI.storageString, &CSI.currentcommand[index]);
 			}
-			/*else if (CSI.curflags[0] == 8) {
-				if (CSI.currentcommand[index] != 34) { sprintf(CSI.exceptionMsg, "append() only accepts an argument of type string here"); interpreter_throw(1); }
-				else if (CSI.currentcommand[index] == 34) CSI.curflags[1] = 1;
-			}*/
+			else if (CSI.curflags[0] == 8) {
+				if (CSI.currentcommand[index] == 60) CSI.curflags[2] = 3;
+				else if (isdigit(CSI.currentcommand[index]) || CSI.currentcommand[index] == 34) { sprintf(CSI.exceptionMsg, "changeWindowButtons() only accepts an argument of type array here"); interpreter_throw(1); }
+				else if (CSI.currentcommand[index] == 41 || CSI.currentcommand[index] == 10 || CSI.currentcommand[index] == 59) { interpreter_get(CSI.varname); }
+				else strcat(CSI.varname, &CSI.currentcommand[index]);
+			}
+			
 		}
 		index++;
 	}
