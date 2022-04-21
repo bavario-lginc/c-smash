@@ -4,11 +4,10 @@
 name = string value
 name = int value
 name = bool value
+name = array value
 ```
-This creates a new variable named after `name` and assigns either an integer or a string to it. You can also assign the keywords `True` and `False` to it, which will be converted to `0` and `1` respectively.
+This creates a new variable named after `name` and assigns either an integer, a string or an array to it. You can also assign the keywords `True` and `False` to it, which will be converted to `0` and `1` respectively.
 The variable can then be called by another command later.
-
-**Note:** This command may output `Writing value to memory...`. This is just for debugging purposes, and will be removed in future versions.
 ## Performing Arithmetic
 ```
 name = int a + int b // Addition
@@ -20,10 +19,10 @@ name = int a % int b // Remainders of Division
 ```
 These commands allow you to perform certain arithmetic tasks using two integers.
 In future versions, these will also be usable on strings.
-
-**Note:** This command may output `Writing value to memory...`. This is just for debugging purposes, and will be removed in future versions.
 ## Outputting variables
 `sayvar(var variable)` outputs the string or integer from a variable.
+When used with an array, it will output all of the array's content. You can also choose one entry out of the array by writing `sayvar(array[index])`, see the Examples down below for more information.
+
 This will later be united with `saythis()`.
 ## Examples
 ```
@@ -49,4 +48,14 @@ sayvar(falseBool); // Outputs 0
 csmashTest = 4 ^ 2;
 saythis("4 to the 2nd power is:");
 sayvar(csmashTest);
+
+// Since version 0.2, using arrays is possible:
+testArray = <"Hello", "World", "and", "foo", "bar">;
+sayvar(testArray); // Outputs: Array: ["Hello","World","and","foo","bar"]
+sayvar(testArray[1]); // Outputs: World
+
+// You can also write integers to arrays, like so:
+intArray = <13, 3, 58, 25, 98>;
+sayvar(testArray); // Outputs: Array: [13,3,58,25,98]
+sayvar(testArray[1]); // Outputs: 3
 ```
